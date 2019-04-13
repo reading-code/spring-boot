@@ -16,12 +16,7 @@
 
 package org.springframework.boot;
 
-import java.io.IOException;
-import java.util.HashSet;
-import java.util.Set;
-
 import groovy.lang.Closure;
-
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.BeanDefinitionStoreException;
 import org.springframework.beans.factory.groovy.GroovyBeanDefinitionReader;
@@ -44,6 +39,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
+
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Loads bean definitions from underlying sources, including XML and JavaConfig. Acts as a
@@ -78,12 +77,20 @@ class BeanDefinitionLoader {
 		Assert.notNull(registry, "Registry must not be null");
 		Assert.notEmpty(sources, "Sources must not be empty");
 		this.sources = sources;
+		
+		// 设置读取 注解定义 的方式进行匹配的方式
 		this.annotatedReader = new AnnotatedBeanDefinitionReader(registry);
+		
+		// 设置读取 xml定义 的方式进行匹配的方式
 		this.xmlReader = new XmlBeanDefinitionReader(registry);
 		if (isGroovyPresent()) {
+			// 设置读取 groovy定义 的方式进行匹配的方式
 			this.groovyReader = new GroovyBeanDefinitionReader(registry);
 		}
+		
+		// 设置读取 ClassPath定义 的方式进行匹配的方式
 		this.scanner = new ClassPathBeanDefinitionScanner(registry);
+		// 设置扫描起点
 		this.scanner.addExcludeFilter(new ClassExcludeFilter(sources));
 	}
 
