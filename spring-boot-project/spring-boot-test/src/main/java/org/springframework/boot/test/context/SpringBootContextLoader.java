@@ -27,6 +27,7 @@ import org.springframework.boot.context.properties.bind.Bindable;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.source.ConfigurationPropertySource;
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
+import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.mock.web.SpringBootMockServletContext;
 import org.springframework.boot.test.util.TestPropertyValues;
 import org.springframework.boot.web.reactive.context.GenericReactiveWebApplicationContext;
@@ -36,7 +37,8 @@ import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.Ordered;
 import org.springframework.core.SpringVersion;
-import org.springframework.core.annotation.AnnotatedElementUtils;
+import org.springframework.core.annotation.MergedAnnotations;
+import org.springframework.core.annotation.MergedAnnotations.SearchStrategy;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.StandardEnvironment;
@@ -58,7 +60,8 @@ import org.springframework.web.context.support.GenericWebApplicationContext;
 /**
  * A {@link ContextLoader} that can be used to test Spring Boot applications (those that
  * normally startup using {@link SpringApplication}). Although this loader can be used
- * directly, most test will instead want to use it with {@link SpringBootTest}.
+ * directly, most test will instead want to use it with
+ * {@link SpringBootTest @SpringBootTest}.
  * <p>
  * The loader supports both standard {@link MergedContextConfiguration} as well as
  * {@link WebMergedContextConfiguration}. If {@link WebMergedContextConfiguration} is used
@@ -76,6 +79,8 @@ import org.springframework.web.context.support.GenericWebApplicationContext;
  * @see SpringBootTest
  */
 public class SpringBootContextLoader extends AbstractContextLoader {
+
+	private static final String[] NO_ARGS = new String[0];
 
 	@Override
 	public ApplicationContext loadContext(MergedContextConfiguration config)
@@ -153,9 +158,9 @@ public class SpringBootContextLoader extends AbstractContextLoader {
 	 * @see SpringApplication#run(String...)
 	 */
 	protected String[] getArgs(MergedContextConfiguration config) {
-		SpringBootTest annotation = AnnotatedElementUtils
-				.findMergedAnnotation(config.getTestClass(), SpringBootTest.class);
-		return (annotation != null) ? annotation.args() : new String[0];
+		return MergedAnnotations.from(config.getTestClass(), SearchStrategy.EXHAUSTIVE)
+				.get(SpringBootTest.class).getValue("args", String[].class)
+				.orElse(NO_ARGS);
 	}
 
 	private void setActiveProfiles(ConfigurableEnvironment environment,
@@ -223,12 +228,10 @@ public class SpringBootContextLoader extends AbstractContextLoader {
 	}
 
 	private boolean isEmbeddedWebEnvironment(MergedContextConfiguration config) {
-		SpringBootTest annotation = AnnotatedElementUtils
-				.findMergedAnnotation(config.getTestClass(), SpringBootTest.class);
-		if (annotation != null && annotation.webEnvironment().isEmbedded()) {
-			return true;
-		}
-		return false;
+		return MergedAnnotations.from(config.getTestClass(), SearchStrategy.EXHAUSTIVE)
+				.get(SpringBootTest.class)
+				.getValue("webEnvironment", WebEnvironment.class)
+				.orElse(WebEnvironment.NONE).isEmbedded();
 	}
 
 	@Override

@@ -221,6 +221,19 @@ public class FlywayAutoConfiguration {
 					.to(configuration::skipDefaultResolvers);
 			map.from(properties.isValidateOnMigrate())
 					.to(configuration::validateOnMigrate);
+			// Pro properties
+			map.from(properties.getBatch()).whenNonNull().to(configuration::batch);
+			map.from(properties.getDryRunOutput()).whenNonNull()
+					.to(configuration::dryRunOutput);
+			map.from(properties.getErrorOverrides()).whenNonNull()
+					.to(configuration::errorOverrides);
+			map.from(properties.getLicenseKey()).whenNonNull()
+					.to(configuration::licenseKey);
+			map.from(properties.getOracleSqlplus()).whenNonNull()
+					.to(configuration::oracleSqlplus);
+			map.from(properties.getStream()).whenNonNull().to(configuration::stream);
+			map.from(properties.getUndoSqlMigrationPrefix()).whenNonNull()
+					.to(configuration::undoSqlMigrationPrefix);
 		}
 
 		private void configureCallbacks(FluentConfiguration configuration,
@@ -298,7 +311,6 @@ public class FlywayAutoConfiguration {
 
 			public FlywayInitializerJdbcOperationsDependencyConfiguration() {
 				super("flywayInitializer");
-
 			}
 
 		}

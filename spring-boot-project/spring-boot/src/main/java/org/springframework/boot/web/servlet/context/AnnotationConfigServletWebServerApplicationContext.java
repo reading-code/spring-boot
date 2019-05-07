@@ -33,7 +33,6 @@ import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
-import org.springframework.web.context.support.AnnotationConfigWebApplicationContext;
 
 /**
  * {@link ServletWebServerApplicationContext} that accepts annotated classes as input - in
@@ -51,7 +50,7 @@ import org.springframework.web.context.support.AnnotationConfigWebApplicationCon
  * @see #register(Class...)
  * @see #scan(String...)
  * @see ServletWebServerApplicationContext
- * @see AnnotationConfigWebApplicationContext
+ * @see AnnotationConfigServletWebApplicationContext
  */
 public class AnnotationConfigServletWebServerApplicationContext
 		extends ServletWebServerApplicationContext implements AnnotationConfigRegistry {

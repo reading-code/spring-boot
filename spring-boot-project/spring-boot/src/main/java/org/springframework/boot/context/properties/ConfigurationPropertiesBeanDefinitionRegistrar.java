@@ -28,6 +28,8 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.GenericBeanDefinition;
 import org.springframework.core.KotlinDetector;
 import org.springframework.core.annotation.AnnotationUtils;
+import org.springframework.core.annotation.MergedAnnotations;
+import org.springframework.core.annotation.MergedAnnotations.SearchStrategy;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
@@ -80,8 +82,9 @@ final class ConfigurationPropertiesBeanDefinitionRegistrar {
 	}
 
 	private static void assertHasAnnotation(Class<?> type) {
-		Assert.notNull(
-				AnnotationUtils.findAnnotation(type, ConfigurationProperties.class),
+		Assert.isTrue(
+				MergedAnnotations.from(type, SearchStrategy.EXHAUSTIVE)
+						.isPresent(ConfigurationProperties.class),
 				() -> "No " + ConfigurationProperties.class.getSimpleName()
 						+ " annotation found on  '" + type.getName() + "'.");
 	}
@@ -91,11 +94,9 @@ final class ConfigurationPropertiesBeanDefinitionRegistrar {
 		if (canBindAtCreationTime(type)) {
 			return ConfigurationPropertiesBeanDefinition.from(beanFactory, name, type);
 		}
-		else {
-			GenericBeanDefinition definition = new GenericBeanDefinition();
-			definition.setBeanClass(type);
-			return definition;
-		}
+		GenericBeanDefinition definition = new GenericBeanDefinition();
+		definition.setBeanClass(type);
+		return definition;
 	}
 
 	private static boolean canBindAtCreationTime(Class<?> type) {

@@ -29,7 +29,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
 
+import io.undertow.UndertowOptions;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.DeprecatedConfigurationProperty;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
 import org.springframework.boot.convert.DurationUnit;
 import org.springframework.boot.web.server.Compression;
@@ -41,7 +44,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.util.unit.DataSize;
 
 /**
- * {@link ConfigurationProperties} for a web server (e.g. port and path settings).
+ * {@link ConfigurationProperties @ConfigurationProperties} for a web server (e.g. port
+ * and path settings).
  *
  * @author Dave Syer
  * @author Stephane Nicoll
@@ -57,6 +61,8 @@ import org.springframework.util.unit.DataSize;
  * @author Chentao Qu
  * @author Artsiom Yudovin
  * @author Andrew McGhie
+ * @author Rafiullah Hamedy
+ *
  */
 @ConfigurationProperties(prefix = "server", ignoreUnknownFields = true)
 public class ServerProperties {
@@ -75,9 +81,9 @@ public class ServerProperties {
 	private final ErrorProperties error = new ErrorProperties();
 
 	/**
-	 * Whether X-Forwarded-* headers should be applied to the HttpRequest.
+	 * Strategy for handling X-Forwarded-* headers.
 	 */
-	private Boolean useForwardHeaders;
+	private ForwardHeadersStrategy forwardHeadersStrategy = ForwardHeadersStrategy.NONE;
 
 	/**
 	 * Value to use for the Server response header (if empty, no header is sent).
@@ -129,12 +135,15 @@ public class ServerProperties {
 		this.address = address;
 	}
 
+	@DeprecatedConfigurationProperty(reason = "replaced to support additional strategies",
+			replacement = "server.forward-headers-strategy")
 	public Boolean isUseForwardHeaders() {
-		return this.useForwardHeaders;
+		return ForwardHeadersStrategy.NATIVE.equals(this.forwardHeadersStrategy);
 	}
 
 	public void setUseForwardHeaders(Boolean useForwardHeaders) {
-		this.useForwardHeaders = useForwardHeaders;
+		this.forwardHeadersStrategy = Boolean.TRUE.equals(useForwardHeaders)
+				? ForwardHeadersStrategy.NATIVE : ForwardHeadersStrategy.NONE;
 	}
 
 	public String getServerHeader() {
@@ -195,6 +204,14 @@ public class ServerProperties {
 
 	public Undertow getUndertow() {
 		return this.undertow;
+	}
+
+	public ForwardHeadersStrategy getForwardHeadersStrategy() {
+		return this.forwardHeadersStrategy;
+	}
+
+	public void setForwardHeadersStrategy(ForwardHeadersStrategy forwardHeadersStrategy) {
+		this.forwardHeadersStrategy = forwardHeadersStrategy;
 	}
 
 	/**
@@ -928,6 +945,17 @@ public class ServerProperties {
 			 */
 			private boolean logLatency;
 
+			/**
+			 * Whether to log IP address from the "X-Forwarded-For" header rather than the
+			 * one from the connection.
+			 */
+			private boolean preferProxiedForAddress = false;
+
+			/**
+			 * Request paths that should not be logged.
+			 */
+			private List<String> ignorePaths;
+
 			public boolean isEnabled() {
 				return this.enabled;
 			}
@@ -1024,6 +1052,22 @@ public class ServerProperties {
 				this.logLatency = logLatency;
 			}
 
+			public boolean isPreferProxiedForAddress() {
+				return this.preferProxiedForAddress;
+			}
+
+			public void setPreferProxiedForAddress(boolean preferProxiedForAddress) {
+				this.preferProxiedForAddress = preferProxiedForAddress;
+			}
+
+			public List<String> getIgnorePaths() {
+				return this.ignorePaths;
+			}
+
+			public void setIgnorePaths(List<String> ignorePaths) {
+				this.ignorePaths = ignorePaths;
+			}
+
 		}
 
 	}
@@ -1066,6 +1110,49 @@ public class ServerProperties {
 		 * Whether servlet filters should be initialized on startup.
 		 */
 		private boolean eagerFilterInit = true;
+
+		/**
+		 * Maximum number of query or path parameters that are allowed. This limit exists
+		 * to prevent hash collision based DOS attacks.
+		 */
+		private int maxParameters = UndertowOptions.DEFAULT_MAX_PARAMETERS;
+
+		/**
+		 * Maximum number of headers that are allowed. This limit exists to prevent hash
+		 * collision based DOS attacks.
+		 */
+		private int maxHeaders = UndertowOptions.DEFAULT_MAX_HEADERS;
+
+		/**
+		 * Maximum number of cookies that are allowed. This limit exists to prevent hash
+		 * collision based DOS attacks.
+		 */
+		private int maxCookies = 200;
+
+		/**
+		 * Whether the server should decode percent encoded slash characters. Enabling
+		 * encoded slashes can have security implications due to different servers
+		 * interpreting the slash differently. Only enable this if you have a legacy
+		 * application that requires it.
+		 */
+		private boolean allowEncodedSlash = false;
+
+		/**
+		 * Whether the URL should be decoded. When disabled, percent-encoded characters in
+		 * the URL will be left as-is.
+		 */
+		private boolean decodeUrl = true;
+
+		/**
+		 * Charset used to decode URLs.
+		 */
+		private Charset urlCharset = StandardCharsets.UTF_8;
+
+		/**
+		 * Whether the 'Connection: keep-alive' header should be added to all responses,
+		 * even if not required by the HTTP specification.
+		 */
+		private boolean alwaysSetKeepAlive = true;
 
 		private final Accesslog accesslog = new Accesslog();
 
@@ -1115,6 +1202,62 @@ public class ServerProperties {
 
 		public void setEagerFilterInit(boolean eagerFilterInit) {
 			this.eagerFilterInit = eagerFilterInit;
+		}
+
+		public int getMaxParameters() {
+			return this.maxParameters;
+		}
+
+		public void setMaxParameters(Integer maxParameters) {
+			this.maxParameters = maxParameters;
+		}
+
+		public int getMaxHeaders() {
+			return this.maxHeaders;
+		}
+
+		public void setMaxHeaders(int maxHeaders) {
+			this.maxHeaders = maxHeaders;
+		}
+
+		public Integer getMaxCookies() {
+			return this.maxCookies;
+		}
+
+		public void setMaxCookies(Integer maxCookies) {
+			this.maxCookies = maxCookies;
+		}
+
+		public boolean isAllowEncodedSlash() {
+			return this.allowEncodedSlash;
+		}
+
+		public void setAllowEncodedSlash(boolean allowEncodedSlash) {
+			this.allowEncodedSlash = allowEncodedSlash;
+		}
+
+		public boolean isDecodeUrl() {
+			return this.decodeUrl;
+		}
+
+		public void setDecodeUrl(Boolean decodeUrl) {
+			this.decodeUrl = decodeUrl;
+		}
+
+		public Charset getUrlCharset() {
+			return this.urlCharset;
+		}
+
+		public void setUrlCharset(Charset urlCharset) {
+			this.urlCharset = urlCharset;
+		}
+
+		public boolean isAlwaysSetKeepAlive() {
+			return this.alwaysSetKeepAlive;
+		}
+
+		public void setAlwaysSetKeepAlive(boolean alwaysSetKeepAlive) {
+			this.alwaysSetKeepAlive = alwaysSetKeepAlive;
 		}
 
 		public Accesslog getAccesslog() {
@@ -1205,6 +1348,28 @@ public class ServerProperties {
 			}
 
 		}
+
+	}
+
+	/**
+	 * Strategies for supporting forward headers.
+	 */
+	public enum ForwardHeadersStrategy {
+
+		/**
+		 * Use the underlying container's native support for forwarded headers.
+		 */
+		NATIVE,
+
+		/**
+		 * Use Spring's support for handling forwarded headers.
+		 */
+		FRAMEWORK,
+
+		/**
+		 * Ignore X-Forwarded-* headers.
+		 */
+		NONE
 
 	}
 

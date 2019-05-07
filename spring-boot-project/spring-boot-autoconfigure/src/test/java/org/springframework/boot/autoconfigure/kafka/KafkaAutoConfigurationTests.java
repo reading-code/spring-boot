@@ -55,13 +55,13 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.AfterRollbackProcessor;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.listener.ContainerProperties.AckMode;
+import org.springframework.kafka.listener.SeekToCurrentBatchErrorHandler;
 import org.springframework.kafka.listener.SeekToCurrentErrorHandler;
 import org.springframework.kafka.security.jaas.KafkaJaasLoginModuleInitializer;
 import org.springframework.kafka.support.converter.BatchMessageConverter;
 import org.springframework.kafka.support.converter.BatchMessagingMessageConverter;
 import org.springframework.kafka.support.converter.MessagingMessageConverter;
 import org.springframework.kafka.support.converter.RecordMessageConverter;
-import org.springframework.kafka.test.utils.KafkaTestUtils;
 import org.springframework.kafka.transaction.ChainedKafkaTransactionManager;
 import org.springframework.kafka.transaction.KafkaAwareTransactionManager;
 import org.springframework.kafka.transaction.KafkaTransactionManager;
@@ -284,8 +284,8 @@ public class KafkaAutoConfigurationTests {
 									.isEmpty();
 					assertThat(configs.get("foo.bar.baz")).isEqualTo("qux.fiz.buz");
 					assertThat(configs.get("fiz.buz")).isEqualTo("fix.fox");
-					assertThat(KafkaTestUtils.getPropertyValue(admin,
-							"fatalIfBrokerNotAvailable", Boolean.class)).isTrue();
+					assertThat(admin).hasFieldOrPropertyWithValue(
+							"fatalIfBrokerNotAvailable", true);
 				});
 	}
 
@@ -576,8 +576,39 @@ public class KafkaAutoConfigurationTests {
 				.run((context) -> {
 					ConcurrentKafkaListenerContainerFactory<?, ?> factory = context
 							.getBean(ConcurrentKafkaListenerContainerFactory.class);
-					assertThat(KafkaTestUtils.getPropertyValue(factory, "errorHandler"))
-							.isSameAs(context.getBean("errorHandler"));
+					assertThat(factory).hasFieldOrPropertyWithValue("errorHandler",
+							context.getBean("errorHandler"));
+				});
+	}
+
+	@Test
+	public void concurrentKafkaListenerContainerFactoryInBatchModeShouldUseBatchErrorHandler() {
+		this.contextRunner.withUserConfiguration(BatchErrorHandlerConfiguration.class)
+				.withPropertyValues("spring.kafka.listener.type=batch").run((context) -> {
+					ConcurrentKafkaListenerContainerFactory<?, ?> factory = context
+							.getBean(ConcurrentKafkaListenerContainerFactory.class);
+					assertThat(factory).hasFieldOrPropertyWithValue("errorHandler",
+							context.getBean("batchErrorHandler"));
+				});
+	}
+
+	@Test
+	public void concurrentKafkaListenerContainerFactoryInBatchModeWhenBatchErrorHandlerNotAvailableShouldBeNull() {
+		this.contextRunner.withPropertyValues("spring.kafka.listener.type=batch")
+				.run((context) -> {
+					ConcurrentKafkaListenerContainerFactory<?, ?> factory = context
+							.getBean(ConcurrentKafkaListenerContainerFactory.class);
+					assertThat(factory).hasFieldOrPropertyWithValue("errorHandler", null);
+				});
+	}
+
+	@Test
+	public void concurrentKafkaListenerContainerFactoryInBatchModeAndSimpleErrorHandlerShouldBeNull() {
+		this.contextRunner.withPropertyValues("spring.kafka.listener.type=batch")
+				.withUserConfiguration(ErrorHandlerConfiguration.class).run((context) -> {
+					ConcurrentKafkaListenerContainerFactory<?, ?> factory = context
+							.getBean(ConcurrentKafkaListenerContainerFactory.class);
+					assertThat(factory).hasFieldOrPropertyWithValue("errorHandler", null);
 				});
 	}
 
@@ -656,6 +687,16 @@ public class KafkaAutoConfigurationTests {
 		@Bean
 		public SeekToCurrentErrorHandler errorHandler() {
 			return new SeekToCurrentErrorHandler();
+		}
+
+	}
+
+	@Configuration(proxyBeanMethods = false)
+	protected static class BatchErrorHandlerConfiguration {
+
+		@Bean
+		public SeekToCurrentBatchErrorHandler batchErrorHandler() {
+			return new SeekToCurrentBatchErrorHandler();
 		}
 
 	}

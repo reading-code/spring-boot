@@ -135,11 +135,11 @@ public class LoggingApplicationListener implements GenericApplicationListener {
 				"org.springframework.boot.web.servlet.ServletContextInitializerBeans");
 		loggers.add("sql", "org.springframework.jdbc.core");
 		loggers.add("sql", "org.hibernate.SQL");
+		loggers.add("sql", "org.jooq.tools.LoggerListener");
 		DEFAULT_GROUP_LOGGERS = Collections.unmodifiableMap(loggers);
 	}
 
 	private static final Map<LogLevel, List<String>> LOG_LEVEL_LOGGERS;
-
 	static {
 		MultiValueMap<LogLevel, String> loggers = new LinkedMultiValueMap<>();
 		loggers.add(LogLevel.DEBUG, "sql");
@@ -320,10 +320,17 @@ public class LoggingApplicationListener implements GenericApplicationListener {
 	}
 
 	protected void initializeLogLevel(LoggingSystem system, LogLevel level) {
-		LOG_LEVEL_LOGGERS.getOrDefault(level, Collections.emptyList()).stream()
-				.flatMap((logger) -> DEFAULT_GROUP_LOGGERS
-						.getOrDefault(logger, Collections.singletonList(logger)).stream())
-				.forEach((logger) -> system.setLogLevel(logger, level));
+		LOG_LEVEL_LOGGERS.getOrDefault(level, Collections.emptyList())
+				.forEach((logger) -> initializeLogLevel(system, level, logger));
+	}
+
+	private void initializeLogLevel(LoggingSystem system, LogLevel level, String logger) {
+		List<String> groupLoggers = DEFAULT_GROUP_LOGGERS.get(logger);
+		if (groupLoggers == null) {
+			system.setLogLevel(logger, level);
+			return;
+		}
+		groupLoggers.forEach((groupLogger) -> system.setLogLevel(groupLogger, level));
 	}
 
 	protected void setLogLevels(LoggingSystem system, Environment environment) {
